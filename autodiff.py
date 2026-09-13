@@ -1,4 +1,5 @@
 import numpy as np
+
 def _unbroadcast(grad, shape):
     """
     Réduit un gradient à une shape donnée en sommant les dimensions introduites
@@ -19,6 +20,7 @@ def _unbroadcast(grad, shape):
         if dim == 1 and grad.shape[i] != 1:
             grad = grad.sum(axis=i, keepdims=True)
     return grad
+
 class Tensor:
     def __init__(self, data, _children=(), requires_grad=True):
         """
@@ -168,3 +170,29 @@ class Tensor:
                 self.grad += out.grad * out.data
         out._backward = _backward
         return out
+
+    def matmul(self, other):
+        """
+        Effectue le produit matriciel entre ce Tensor et un autre Tensor (self @ other).
+
+        Args:
+        other: Tensor à multiplier avec le Tensor courant. Ses dimensions doivent
+        être compatibles avec celles de self pour le produit matriciel,
+        conformément aux règles de np.matmul. Si other n'est pas déjà
+        un Tensor, il est automatiquement converti.
+
+        Returns:
+        Tensor: nouveau Tensor correspondant au résultat de self @ other,
+        accompagné de sa fonction de rétropropagation associée.
+        """
+        if not isinstance(other, Tensor):
+            other = Tensor(other)
+
+        out = Tensor(self.data @ other.data, _children=(self, other))
+        def _backward():
+            if self.requires_grad:
+                self.grad += out.grad @ other.data.T
+            if other.requires_grad:
+                other.grad += self.data.T @ out.grad 
+        out._backward = _backward
+        return out 
