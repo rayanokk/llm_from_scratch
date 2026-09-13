@@ -196,3 +196,45 @@ class Tensor:
                 other.grad += self.data.T @ out.grad 
         out._backward = _backward
         return out 
+
+    def sum(self, axis=None, keepdims=False):
+        """
+        Calcule la somme des éléments de ce Tensor selon un axe donné
+
+        Args:
+            axis: int ou None. Si None, additionne tous les éléments et retourne
+            un scalaire. Sinon, effectue la somme le long de l'axe spécifié.
+            keepdims: bool. Si True, conserve l'axe réduit avec une taille de 1,
+            ce qui facilite le broadcasting lors des opérations suivantes
+
+        Returns:
+            Tensor: résultat de la somme, avec sa fonction de rétropropagation
+            associée
+        """
+        out_data = self.data.sum(axis=axis, keepdims=keepdims)
+        out = Tensor(out_data, _children=(self,))
+        def _backward():
+            if self.requires_grad:
+                grad = out.grad
+                if axis is not None and not keepdims:
+                    grad = np.expand_dims(grad, axis=axis)
+                self.grad += np.ones_like(self.data) * grad
+        out._backward = _backward
+        return out
+
+    def __truediv__(self, other):
+        """
+        Effectue une division élément par élément entre ce Tensor et une autre valeur.
+
+        Args:
+            other: valeur par laquelle diviser, pouvant être un Tensor, un scalaire,
+            une liste ou un np.ndarray.
+
+        Returns:
+            Tensor: nouveau Tensor correspondant à self / other, avec sa fonction
+            de rétropropagation associée.
+        """
+        if not isinstance(other, Tensor):
+            other = Tensor(other)
+
+        return self  * other ** (-1) # réutilise __mul__ et __pow__
