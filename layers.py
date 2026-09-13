@@ -123,3 +123,60 @@ class Embedding(Module):
             list[Tensor]: [weight]
         """
         return [self.weight]
+
+class LayerNorm(Module):
+    def __init__(self, d_model: int, eps: float = 1e-5):
+        """
+        Normalisation de couche (Normalization Layer) appliquée sur la dernière
+        dimension du Tensor (d_model).
+
+        LayerNorm(x) = gamma * (x - mean(x)) / sqrt(var(x) + eps) + beta
+
+        Args:
+            d_model: int, dimension du dernier axe sur lequel la normalisation
+            est effectuée.
+            eps: float, petite constante ajoutée à la variance afin d'éviter
+            une division par zéro.
+
+        Attributes:
+            gamma (Tensor): facteur d'échelle appris de shape (d_model,),
+            initialisé à 1.
+            beta (Tensor): terme de décalage appris de shape (d_model,),
+            initialisé à 0.
+        """
+        super().__init__()
+        self.d_model = d_model
+        self.eps = eps 
+        self.gamma = Tensor(np.ones(d_model), requires_grad=True)
+        self.beta = Tensor(np.zeros(d_model), requires_grad=True)
+
+    def __call__(self, x):
+        """
+        Applique la normalisation de couche à l'entrée x.
+
+        Args:
+            x: Tensor d'entrée, de shape (..., d_model), la normalisation
+            est calculée le long du dernier axe uniquement.
+
+        Returns:
+            Tensor: sortie normalisée puis mise à l'échelle, de même shape
+            que x.
+        """
+        last_axis = len(x.data.shape) - 1
+        mean = x.sum(axis=last_axis, keepdims=True) / x.data.shape[last_axis]
+
+        diff = x - mean
+        var = (diff ** 2).sum(axis=last_axis, keepdims=True) / x.data.shape[last_axis]
+
+        x_norm = diff / (var + self.eps) ** 0.5
+
+        return self.gamma * x_norm + self.beta
+
+    def parameters(self):
+        """
+        Retourne les paramètres entraînables de cette couche.
+
+        Returns:
+            list[Tensor]: [gamma, beta]
+        """
+        return [self.gamma, self.beta]
