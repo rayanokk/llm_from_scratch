@@ -70,4 +70,56 @@ class Linear(Module):
             list[Tensor]: [W, b]
         """
         return [self.W, self.b]
-    
+
+class Embedding(Module):
+    def __init__(self, vocab_size: int, d_model: int):
+        """
+        Lookup table entre les indices de tokens et les vecteurs denses.
+
+        Args:
+            vocab_size: nombre total de tokens distincts dans le vocabulaire.
+            d_model: dimension des vecteurs d'embedding.
+
+        Attributs:
+            weight (Tensor): matrice de shape (vocab_size, d_model), une ligne
+            par token, initialisée selon une loi normale centrée réduite
+            multipliée par 0.02 (convention GPT-2/GPT-3 pour l'initialisation
+            des embeddings).
+        """
+        super().__init__()
+        self.vocab_size = vocab_size
+        self.d_model = d_model
+        weight_data = np.random.randn(vocab_size, d_model) * 0.02
+        self.weight = Tensor(weight_data, requires_grad=True)
+
+    def __call__(self, idx):
+        """
+        Retourne les vecteurs d'embedding correspondant aux indices donnés
+
+        Args:
+            idx: np.ndarray d'entiers, de shape (...) quelconque — typiquement
+            (batch_size, seq_len) — contenant les indices de tokens à
+            encoder. Ce n'est PAS un Tensor (juste des indices bruts)
+
+        Returns:
+            Tensor: vecteurs d'embedding de shape (..., d_model), avec le
+            graphe de calcul permettant de rétropropager vers les lignes
+            utilisées de self.weight
+        """
+        out_data = self.weight.data[idx]
+        out = Tensor(out_data, _children=(self.weight,))
+        def _backward():
+            if self.weight.requires_grad:
+                np.add.at(self.weight.grad, idx, out.grad)
+
+        out._backward = _backward
+        return out 
+
+    def parameters(self):
+        """
+        Retourne les paramètres entraînables de cette couche.
+
+        Returns:
+            list[Tensor]: [weight]
+        """
+        return [self.weight]
