@@ -18,7 +18,6 @@ class Module:
         """
         return []
 
-
 class Linear(Module):
     def __init__(self, in_features: int, out_features: int):
         """
@@ -180,3 +179,47 @@ class LayerNorm(Module):
             list[Tensor]: [gamma, beta]
         """
         return [self.gamma, self.beta]
+
+def gelu(x):
+    """
+    Applique l'activation GELU (*Gaussian Error Linear Unit*) à l'entrée,
+    en utilisant l'approximation par tangente hyperbolique employée dans GPT-2.
+
+    GELU(x) ≈ 0.5 * x * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x³)))
+
+    Args:
+        x: Tensor d'entrée de shape quelconque.
+
+    Returns:
+        Tensor: résultat de GELU(x), de même shape que x
+    """
+    inner = (x + x**3 * 0.044715) * np.sqrt(2.0 / np.pi)
+    e_pos = inner.exp()
+    e_neg = (inner * -1).exp()
+    tanh_inner = (e_pos - e_neg) / (e_pos + e_neg)
+    return x * 0.5 * (tanh_inner + 1)
+
+def softmax(x, axis=-1):
+    """
+    Calcule le softmax de x le long d'un axe donné afin de transformer des
+    scores en distribution de probabilités.
+
+    softmax(x)_i = exp(x_i) / sum_j(exp(x_j))
+
+    Utilise une version numériquement stable en soustrayant le maximum avant
+    l'exponentiation afin d'éviter les débordements.
+
+    Args:
+        x: Tensor d'entrée de shape quelconque.
+        axis: int, axe du softmax (par défaut, le dernier).
+
+    Returns:
+    Tensor: distribution de probabilités de même shape que x
+    """
+    max_vals = np.max(x.data, axis=axis, keepdims=True)
+    max_tensor = Tensor(max_vals, requires_grad=False)
+    x_shifted = x - max_tensor
+    exp_x = x_shifted.exp()
+    sum_exp = exp_x.sum(axis=axis, keepdims=True)
+
+    return exp_x / sum_exp
