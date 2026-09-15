@@ -238,3 +238,30 @@ class Tensor:
             other = Tensor(other)
 
         return self  * other ** (-1) # réutilise __mul__ et __pow__
+
+    def transpose(self, axes=None):
+        """
+        Permute les axes de ce Tensor selon l'ordre spécifié.
+
+        Args:
+            axes: tuple d'entiers définissant le nouvel ordre des axes, ou None
+            pour inverser leur ordre.
+
+        Returns:
+            Tensor: nouveau Tensor avec les axes permutés et sa fonction _backward
+            associée
+        """
+        out_data = self.data.transpose(axes)
+        out = Tensor(out_data, _children=(self,))
+        def _backward():
+            if self.requires_grad:
+                if axes is not None:
+                    self.grad += out.grad.transpose(tuple(np.argsort(axes)))
+                else:
+                    self.grad += out.grad.transpose()
+        out._backward = _backward
+        return out
+
+    @property
+    def T(self):
+        return self.transpose()
