@@ -116,10 +116,3 @@ class MultiHeadAttention(Module):
 
     def parameters(self):
         return self.W_K.parameters() + self.W_Q.parameters() + self.W_V.parameters() + self.W_O.parameters()
-
-
-
-        
-
-
-    
