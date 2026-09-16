@@ -1,5 +1,6 @@
 from layers import Module, Linear,LayerNorm, gelu
 from attention import MultiHeadAttention
+
 class FeedForward(Module):
     def __init__(self, d_model: int, d_ff: int):
         """
@@ -58,4 +59,3 @@ class TransformerBlock(Module):
     def parameters(self):
         return self.attn.parameters() + self.ffn.parameters() + self.ln1.parameters() + self.ln2.parameters()
 
-    
