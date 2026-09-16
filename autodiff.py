@@ -191,9 +191,9 @@ class Tensor:
         out = Tensor(self.data @ other.data, _children=(self, other))
         def _backward():
             if self.requires_grad:
-                self.grad += out.grad @ other.data.T
+                self.grad += _unbroadcast(out.grad @ other.data.swapaxes(-1, -2), self.data.shape)
             if other.requires_grad:
-                other.grad += self.data.T @ out.grad 
+                other.grad += _unbroadcast(self.data.swapaxes(-1, -2) @ out.grad, other.data.shape)
         out._backward = _backward
         return out 
 
@@ -265,3 +265,27 @@ class Tensor:
     @property
     def T(self):
         return self.transpose()
+
+    def reshape(self, *shape):
+        """
+        Modifie la shape de ce Tensor sans modifier ses données.
+
+        Args:
+            *shape: dimensions de la nouvelle shape, fournies comme arguments séparés
+            (ex: x.reshape(2, 3, 4)) ou sous la forme d'un tuple
+            (ex: x.reshape((2, 3, 4))), comme avec np.reshape.
+
+        Returns:
+            Tensor: nouveau Tensor de shape shape, contenant les mêmes données que
+            self, avec sa fonction _backward
+        """
+        if len(shape) == 1 and isinstance(shape[0], (tuple, list)):
+            shape = shape[0]
+        out_data = self.data.reshape(shape)
+        out = Tensor(out_data, _children=(self,))
+        def _backward():
+            if self.requires_grad:
+                self.grad += out.grad.reshape(self.data.shape)
+        out._backward = _backward
+
+        return out
