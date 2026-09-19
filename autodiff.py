@@ -289,3 +289,14 @@ class Tensor:
         out._backward = _backward
 
         return out
+
+    def __getitem__(self, idx):
+        out_data = self.data[idx]
+        out = Tensor(out_data, _children=(self,))
+        def _backward():
+            if self.requires_grad:
+                 grad_full = np.zeros_like(self.data)
+                 grad_full[idx] += out.grad
+                 self.grad += grad_full
+        out._backward = _backward
+        return out
