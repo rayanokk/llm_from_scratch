@@ -70,3 +70,46 @@ class GPT(Module):
         for block in self.blocks:
             parameters = parameters + block.parameters()
         return parameters
+
+    def generate(self, idx, max_new_tokens, temp=1, top_k=None):
+        """
+        Génère une séquence de tokens de manière autoregressive à partir d'un
+        contexte initial, sans calculer de gradients.
+
+        Args:
+            idx: np.ndarray d'entiers de shape (batch_size, seq_len), contenant
+            le contexte initial.
+            max_new_tokens: int, nombre de nouveaux tokens à générer.
+            temp: float, facteur de température appliqué aux logits avant
+            le softmax. Une valeur inférieure à 1 rend la génération plus
+            déterministe, tandis qu'une valeur supérieure à 1 la rend plus
+            aléatoire.
+            top_k: int ou None, si fourni, limite l'échantillonnage aux k tokens
+            ayant les logits les plus élevés à chaque étape.
+
+        Returns:
+            np.ndarray: séquence complète contenant le contexte initial et les
+            tokens générés, de shape (batch_size, seq_len + max_new_tokens).
+        """
+        for _ in range(max_new_tokens):
+            idx_truncated = idx[:, -self.max_seq_len:]
+            logits = self(idx_truncated)
+            logits = logits[:, -1, :].data #(batch_size, vocab_size)
+            logits = logits / temp
+
+            if top_k is not None:
+                indices = np.argsort(logits, axis=-1)
+                indices_to_rmv = indices[:, :-top_k]
+                logits[np.arange(logits.shape[0])[:, None], indices_to_rmv] = -np.inf
+            probs = np.exp(logits - logits.max(axis=-1, keepdims=True))
+            probs /= probs.sum(axis=-1, keepdims=True)
+
+            next_tokens = np.array([
+                np.random.choice(logits.shape[1], p=probs[i])
+                for i in range(logits.shape[0])
+            ])
+
+            next_tokens = next_tokens[:, None]
+            idx = np.concatenate([idx, next_tokens], axis=-1)
+
+        return idx
