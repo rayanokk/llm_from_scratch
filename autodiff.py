@@ -300,3 +300,21 @@ class Tensor:
                  self.grad += grad_full
         out._backward = _backward
         return out
+
+    def log(self):
+        """
+        Calcule le logarithme népérien de ce Tensor, élément par élément.
+
+        Returns:
+            Tensor: nouveau Tensor égal à ln(self), avec sa fonction de
+            rétropropagation associée
+        """
+        out_data = np.log(self.data)
+        out = Tensor(out_data, _children=(self,))
+        def _backward():
+            if self.requires_grad:
+                self.grad += out.grad / self.data
+        out._backward = _backward
+        return out
+
+    
