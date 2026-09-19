@@ -1,6 +1,6 @@
 from autodiff import Tensor
 import numpy as np
-import tqdm
+from tqdm import tqdm
 
 def cross_entropy_loss(logits, targets):
     """
@@ -135,13 +135,17 @@ def train(model, data, optimizer, n_steps, batch_size, seq_len):
     Returns:
         list[float]: l'historique des valeurs de loss, une par itération.
     """
-    for step in tqdm(range(n_steps)):
+    loss_history = []
+    pbar = tqdm(range(n_steps))
+    for step in pbar:
         x, y = get_batch(data, batch_size, seq_len)
         logits = model(x)
         logits_flat = logits.reshape(batch_size*seq_len, model.vocab_size)
         y_flat = y.reshape(batch_size * seq_len)
 
-        loss = cross_entropy_loss(logits_flat, y_flat)
+        CEloss = cross_entropy_loss(logits_flat, y_flat)
         optimizer.zero_grad()
-        loss.backward()
+        CEloss.backward()
         optimizer.step()
+        loss_history.append(float(CEloss.data))
+        pbar.set_postfix(loss=CEloss)
